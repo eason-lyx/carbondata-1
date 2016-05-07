@@ -18,24 +18,22 @@
 package org.apache.spark.rdd
 
 import org.apache.hadoop.io.{LongWritable, Text}
-import org.apache.hadoop.mapreduce.lib.input.FileSplit
 import org.apache.spark._
 
-import org.carbondata.core.load.BlockDetails
 
 /**
- * this RDD use to combine blocks in node level
- * return (host,Array[BlockDetails])
+ * this RDD use to get Task host
+ * return (host)
  * @param prev
  */
 class DummyLoadRDD(prev: NewHadoopRDD[LongWritable, Text])
-  extends RDD[(String, BlockDetails)](prev) {
+  extends RDD[(String)](prev) {
 
   override def getPartitions: Array[Partition] = firstParent[(LongWritable, Text)].partitions
 
   override def compute(theSplit: Partition,
-                       context: TaskContext): Iterator[(String, BlockDetails)] = {
-    new Iterator[(String, BlockDetails)] {
+                       context: TaskContext): Iterator[(String)] = {
+    new Iterator[(String)] {
       val split = theSplit.asInstanceOf[NewHadoopPartition]
       var finished = false
 
@@ -49,14 +47,9 @@ class DummyLoadRDD(prev: NewHadoopRDD[LongWritable, Text])
         }
       }
 
-      override def next(): (String, BlockDetails) = {
+      override def next(): (String) = {
         val host = TaskContext.get.taskMetrics.hostname
-        val fileSplit = split.serializableHadoopSplit.value.asInstanceOf[FileSplit]
-        val nodeBlocksDetail = new BlockDetails
-        nodeBlocksDetail.setBlockOffset(fileSplit.getStart)
-        nodeBlocksDetail.setBlockLength(fileSplit.getLength)
-        nodeBlocksDetail.setFilePath(fileSplit.getPath.toString)
-        (host, nodeBlocksDetail)
+        (host)
       }
     }
   }

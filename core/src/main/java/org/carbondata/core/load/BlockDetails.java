@@ -26,12 +26,14 @@ import java.io.Serializable;
  */
 public class BlockDetails implements Serializable {
 
-  //block offset
+  // block offset
   private long blockOffset;
-  //block length
+  // block length
   private long blockLength;
-  //file path which block belong to
+  // file path which block belong to
   private String filePath;
+  // block locations
+  private String[] locations;
 
   public long getBlockOffset() {
     return blockOffset;
@@ -57,4 +59,11 @@ public class BlockDetails implements Serializable {
     this.filePath = filePath;
   }
 
+  public String[] getLocations() {
+    return locations;
+  }
+
+  public void setLocations(String[] locations) {
+    this.locations = locations;
+  }
 }

@@ -18,8 +18,11 @@
 
 package org.carbondata.integration.spark.rdd
 
+import scala.StringBuilder
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.util.control.Breaks.{break, breakable}
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{LongWritable, Text}
@@ -367,11 +370,10 @@ object CarbonDataRDDFactory extends Logging {
         case false =>
           /*
            * when data load handle by node partition
-           * 1)clone the hadoop configuration,and set the file path to the configuration
-           * 2)use NewHadoopRDD to get split,size:Math.max(minSize, Math.min(maxSize, blockSize))
-           * 3)use DummyLoadRDD to group blocks by host,and let spark balance the block location
-           * 4)DummyLoadRDD output (host,Array[BlockDetails])as the parameter to CarbonDataLoadRDD
-           *   which parititon by host
+           * 1) clone the hadoop configuration,and set the file path to the configuration
+           * 2) use DummyLoadRDD to get the task hosts
+           * 3) sort block list by locations
+           * 4) divide blocks to host
            */
           val hadoopConfiguration = new Configuration(sc.sparkContext.hadoopConfiguration)
           // FileUtils will skip file which is no csv, and return all file path which split by ','
@@ -384,8 +386,30 @@ object CarbonDataRDDFactory extends Logging {
             classOf[LongWritable],
             classOf[Text],
             hadoopConfiguration)
-          blocksGroupBy = new DummyLoadRDD(newHadoopRDD).collect().groupBy[String](_._1)
-            .map { iter => (iter._1, iter._2.map(_._2)) }.toArray
+          val hosts = new DummyLoadRDD(newHadoopRDD).distinct().collect().sorted
+          val blockListWithNoSorted = SplitUtils.getSplits(filePaths, sc.sparkContext)
+            .map { block =>
+              val locations = block.getLocations.toBuffer
+              // filter location which no exist in hosts
+              locations.map { location =>
+                if (!hosts.contains(location)) {
+                  locations.-=(location)
+                }
+              }
+              block.setLocations(locations.toArray)
+              block
+            }
+          val blockDetailsList: ArrayBuffer[BlockDetails] = new ArrayBuffer[BlockDetails]()
+          var index = -1
+          blockListWithNoSorted.map { block =>
+            val builder = new StringBuilder()
+            block.getLocations.foreach(loc => builder.append(loc))
+            index = index + 1
+            (builder.toString(), index)
+          }.sorted.map { blocklocation =>
+            blockDetailsList.append(blockListWithNoSorted.apply(blocklocation._2))
+          }
+          blocksGroupBy = divideBlocksToHost(hosts, blockDetailsList)
       }
 
       val status = new
@@ -515,6 +539,38 @@ object CarbonDataRDDFactory extends Logging {
       }
     }
 
+  }
+
+  private def divideBlocksToHost(hosts: Array[String],
+                                 blockDetailList: ArrayBuffer[BlockDetails])
+  : Array[(String, Array[BlockDetails])] = {
+    val blocksGroupby: ArrayBuffer[(String, BlockDetails)] =
+      new ArrayBuffer[(String, BlockDetails)]()
+    val hostWeight: Array[Int] = new Array[Int](hosts.length)
+
+    for (blockIndex <- 0 until blockDetailList.length) {
+      var blockNoLocal = true
+      breakable {
+        for (hostIndex <- 0 until hosts.length) {
+          if (blockDetailList(blockIndex).getLocations.contains(hosts(hostIndex))) {
+            if (hostWeight.indexOf(hostWeight.min) == hostIndex) {
+              blocksGroupby.append((hosts(hostIndex), blockDetailList(blockIndex)))
+              hostWeight(hostIndex) += 1
+              blockNoLocal = false
+              break
+            }
+          }
+        }
+      }
+      if (blockNoLocal) {
+        blocksGroupby.append((hosts(hostWeight.indexOf(hostWeight.min)), blockDetailList(blockIndex)))
+        hostWeight(hostWeight.indexOf(hostWeight.min)) += 1
+      }
+    }
+
+    blocksGroupby.groupBy[String](_._1).map { iter =>
+      (iter._1, iter._2.map(_._2).toArray)
+    }.toArray
   }
 
   private def readLoadMetadataDetails(model: CarbonLoadModel, hdfsStoreLocation: String) = {

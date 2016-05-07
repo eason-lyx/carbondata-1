@@ -63,6 +63,8 @@ object SplitUtils {
         blockDetails.setBlockOffset(block.getStart)
         blockDetails.setBlockLength(block.getLength)
         blockDetails.setFilePath(block.getPath.toString)
+        // sort locations list for each block
+        blockDetails.setLocations(block.getLocations.sorted)
         blockDetails
       }
     }
