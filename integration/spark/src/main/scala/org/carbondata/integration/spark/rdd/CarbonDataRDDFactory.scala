@@ -655,8 +655,8 @@ object CarbonDataRDDFactory extends Logging {
     breakable {
       for (i <- blockNumWithIndex.indices) {
         // we chose the host which local blocks num is minium
-        //
-        //
+        // and the host no be selected in this round
+        // and the host still contain the local block
         if (!hostHandled.contains(hosts(blockNumWithIndex(i)._2))
           && (blockNumInHost(blockNumWithIndex(i)._2) != 0)) {
           currentHostIndex = blockNumWithIndex(i)._2
