@@ -372,12 +372,13 @@ object CarbonDataRDDFactory extends Logging {
            * when data load handle by node partition
            * 1) clone the hadoop configuration,and set the file path to the configuration
            * 2) use DummyLoadRDD to get the task hosts
-           * 3) sort block list by locations
-           * 4) divide blocks to host
+           * 3) filter all block location which no exist in task host
+           * 4) sort block list by locations number,empty location block append to the end of list
+           * 5) divide blocks to hosts
            */
           val hadoopConfiguration = new Configuration(sc.sparkContext.hadoopConfiguration)
           // FileUtils will skip file which is no csv, and return all file path which split by ','
-          val filePaths = FileUtils.getPaths(carbonLoadModel.getFactFilePath())
+          val filePaths = FileUtils.getPaths(carbonLoadModel.getFactFilePath)
           hadoopConfiguration.set("mapreduce.input.fileinputformat.inputdir", filePaths)
           hadoopConfiguration.set("mapreduce.input.fileinputformat.input.dir.recursive", "true")
           val newHadoopRDD = new NewHadoopRDD[LongWritable, Text](
@@ -387,29 +388,35 @@ object CarbonDataRDDFactory extends Logging {
             classOf[Text],
             hadoopConfiguration)
           val hosts = new DummyLoadRDD(newHadoopRDD).distinct().collect().sorted
+          val blockNumInHost: Array[Int] = new Array[Int](hosts.length)
           val blockListWithNoSorted = SplitUtils.getSplits(filePaths, sc.sparkContext)
             .map { block =>
               val locations = block.getLocations.toBuffer
               // filter location which no exist in hosts
-              locations.map { location =>
+              locations.foreach { location =>
                 if (!hosts.contains(location)) {
                   locations.-=(location)
+                } else {
+                  blockNumInHost(hosts.indexOf(location)) += 1
                 }
               }
               block.setLocations(locations.toArray)
               block
             }
-          val blockDetailsList: ArrayBuffer[BlockDetails] = new ArrayBuffer[BlockDetails]()
-          var index = -1
+          val blockLists: ArrayBuffer[BlockDetails] = new ArrayBuffer[BlockDetails]()
+          val blockListsWithNonLocality: ArrayBuffer[BlockDetails]
+          = new ArrayBuffer[BlockDetails]()
+          // sort block by location number, if the locations is empty, then append to end of list
           blockListWithNoSorted.map { block =>
-            val builder = new StringBuilder()
-            block.getLocations.foreach(loc => builder.append(loc))
-            index = index + 1
-            (builder.toString(), index)
-          }.sorted.map { blocklocation =>
-            blockDetailsList.append(blockListWithNoSorted.apply(blocklocation._2))
+            if (block.getLocations.isEmpty) {
+              blockListsWithNonLocality.append(block)
+            }
+            (block.getLocations.length, block)
+          }.filter(_._1 != 0).sorted.map { block =>
+            blockLists.+=(block._2)
           }
-          blocksGroupBy = divideBlocksToHost(hosts, blockDetailsList)
+          blockLists.appendAll(blockListsWithNonLocality)
+          blocksGroupBy = divideBlocksToHost(hosts, blockNumInHost, blockLists)
       }
 
       val status = new
@@ -541,30 +548,120 @@ object CarbonDataRDDFactory extends Logging {
 
   }
 
-  private def divideBlocksToHost(hosts: Array[String],
-                                 blockDetailList: ArrayBuffer[BlockDetails])
+  private def divideBlocksToHost(hosts: Array[String], blockNumInHost: Array[Int],
+                                 blocksList: ArrayBuffer[BlockDetails])
   : Array[(String, Array[BlockDetails])] = {
     val blocksGroupby: ArrayBuffer[(String, BlockDetails)] =
       new ArrayBuffer[(String, BlockDetails)]()
-    val hostWeight: Array[Int] = new Array[Int](hosts.length)
+    val totalBlockNum = blocksList.length
+    val minBlocksNumPerHost = totalBlockNum / hosts.length
+    val hostHandled: ArrayBuffer[String] = new ArrayBuffer[String]()
+    var divideBlockOnebyOne = false
+    val noLocalBlocksNumInHost: Array[Int] = new Array[Int](hosts.length)
+    val remainBlocksList: ArrayBuffer[BlockDetails] = new ArrayBuffer[BlockDetails]()
 
-    for (blockIndex <- 0 until blockDetailList.length) {
-      var blockNoLocal = true
-      breakable {
-        for (hostIndex <- 0 until hosts.length) {
-          if (blockDetailList(blockIndex).getLocations.contains(hosts(hostIndex))) {
-            if (hostWeight.indexOf(hostWeight.min) == hostIndex) {
-              blocksGroupby.append((hosts(hostIndex), blockDetailList(blockIndex)))
-              hostWeight(hostIndex) += 1
-              blockNoLocal = false
-              break
+    // loop until all blocks were divided
+    while (blocksGroupby.length != totalBlockNum) {
+      // all block locality were divided, now start divide the no local block
+      if ((totalBlockNum - blocksGroupby.length) <= noLocalBlocksNumInHost.sum) {
+        //get remain blocks to divide to hosts
+        blocksList.foreach { block =>
+          if (!blocksGroupby.map { groupByBlock =>
+            groupByBlock._2
+          }.contains(block)) {
+            remainBlocksList.append(block)
+          }
+        }
+        if (noLocalBlocksNumInHost.sum != 0) {
+          for (i <- noLocalBlocksNumInHost.indices) {
+            if (noLocalBlocksNumInHost(i) != 0) {
+              for (j <- 0 until noLocalBlocksNumInHost(i)) {
+                //alway choose the first, after divided, delete the first one.
+                blocksGroupby.append((hosts(i), remainBlocksList(0)))
+                remainBlocksList.remove(0)
+              }
+              noLocalBlocksNumInHost(i) = 0
             }
           }
         }
       }
-      if (blockNoLocal) {
-        blocksGroupby.append((hosts(hostWeight.indexOf(hostWeight.min)), blockDetailList(blockIndex)))
-        hostWeight(hostWeight.indexOf(hostWeight.min)) += 1
+
+      var currentHostIndex = -1
+      // sort the hosts,sort key is block num
+      // format: (blockNum,hostIndex)
+      val blockNumWithIndex = blockNumInHost.zipWithIndex.sorted
+      breakable {
+        for (i <- blockNumWithIndex.indices) {
+          // we chose the host which local blocks num is minium
+          // and the host no be selected in this round
+          // and the host still contain the local block
+          if (!hostHandled.contains(hosts(blockNumWithIndex(i)._2))
+            && (blockNumInHost(blockNumWithIndex(i)._2) != 0)) {
+            currentHostIndex = blockNumWithIndex(i)._2
+            hostHandled.append(hosts(currentHostIndex))
+            break
+          }
+        }
+      }
+
+      if (currentHostIndex != -1) {
+        val hostSelected = hosts(currentHostIndex)
+        var diviedBlockNum = 0
+        breakable {
+          for (i <- blocksList.indices) {
+            // get the local block which belong to selected host
+            if (blocksList(i).getLocations.contains(hostSelected)) {
+              blocksGroupby.append((hostSelected, blocksList(i)))
+              diviedBlockNum += 1
+              blocksList(i).getLocations.foreach { location =>
+                // delete the block replication info which store in blockNumInhost
+                blockNumInHost(hosts.indexOf(location)) -= 1
+              }
+              blocksList.remove(i)
+              // first, we divide the min block num to per host
+              // after all hosts were get min block num
+              // (some host may record to use the no local block to reach the min block num)
+              // use robin way to divide block one by one, local block will be divide first
+              if (divideBlockOnebyOne) {
+                break
+              } else {
+                if (diviedBlockNum == minBlocksNumPerHost) {
+                  break
+                }
+              }
+            }
+            // check if local block is no enough
+            // record how many no local block need to use to reach the min block num
+            if (i == blocksList.length) {
+              if (noLocalBlocksNumInHost(currentHostIndex) == 0) {
+                noLocalBlocksNumInHost(currentHostIndex) = minBlocksNumPerHost - diviedBlockNum
+              }
+            }
+          }
+        }
+      } else {
+        for (i <- blockNumInHost.indices) {
+          // when we can no get the selected host
+          // check if the host which no use in this round and no local block in this host
+          // record need to use no local block
+          if (!hostHandled.contains(hosts(i))) {
+            if (blockNumInHost(i) == 0) {
+              if (divideBlockOnebyOne) {
+                noLocalBlocksNumInHost(i) += 1
+              } else {
+                noLocalBlocksNumInHost(i) += minBlocksNumPerHost
+              }
+              hostHandled.append(hosts(i))
+            }
+          }
+        }
+      }
+
+      // when all hosts were selected, reset and go to next round
+      // after first round, use the robin way to divide block one by one
+      if (hostHandled.length == hosts.length) {
+        hostHandled.clear()
+        divideBlockOnebyOne = true
       }
     }
 
