@@ -569,7 +569,7 @@ object CarbonDataRDDFactory extends Logging {
       // get the host index to process
       val currentHostIndex = selectHostIndex(blockNumInHost, hostHandled, hosts)
       if (currentHostIndex != -1) {
-        //assign local block to host
+        // assign local block to host
         assignLocalBlockToHost(blocksGroupby, blocksList, blockNumInHost,
           hosts, noLocalBlocksNumInHost, assignBlockOnebyOne,
           minBlocksNumPerHost, currentHostIndex)
