@@ -17,6 +17,8 @@
 
 package org.apache.spark.rdd
 
+import java.net.InetAddress
+
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.spark._
 
@@ -24,6 +26,7 @@ import org.apache.spark._
 /**
  * this RDD use to get Task host
  * return (host)
+ *
  * @param prev
  */
 class DummyLoadRDD(prev: NewHadoopRDD[LongWritable, Text])
@@ -48,7 +51,7 @@ class DummyLoadRDD(prev: NewHadoopRDD[LongWritable, Text])
       }
 
       override def next(): (String) = {
-        val host = TaskContext.get.taskMetrics.hostname
+        val host = InetAddress.getLocalHost.getHostName
         (host)
       }
     }

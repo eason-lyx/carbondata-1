@@ -18,9 +18,7 @@
 
 package org.carbondata.integration.spark.rdd
 
-import scala.StringBuilder
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.util.control.Breaks.{break, breakable}
 
@@ -622,7 +620,7 @@ object CarbonDataRDDFactory extends Logging {
       for (i <- noLocalBlocksNumInHost.indices) {
         if (noLocalBlocksNumInHost(i) != 0) {
           for (j <- 0 until noLocalBlocksNumInHost(i)) {
-            // alway choose the first, after divided, delete the first one.
+            // always choose the first, after assigned, delete the first one.
             blocksGroupby.append((hosts(i), blocksList(0)))
             blocksList.remove(0)
           }
@@ -653,13 +651,13 @@ object CarbonDataRDDFactory extends Logging {
     // format: (blockNum,hostIndex)
     val blockNumWithIndex = blockNumInHost.zipWithIndex.sorted
     breakable {
-      for (i <- blockNumWithIndex.indices) {
+      blockNumWithIndex.foreach { blockNum =>
         // we chose the host which local blocks num is minium
         // and the host no be selected in this round
         // and the host still contain the local block
-        if (!hostHandled.contains(hosts(blockNumWithIndex(i)._2))
-          && (blockNumInHost(blockNumWithIndex(i)._2) != 0)) {
-          currentHostIndex = blockNumWithIndex(i)._2
+        if (!hostHandled.contains(hosts(blockNum._2))
+          && (blockNumInHost(blockNum._2) != 0)) {
+          currentHostIndex = blockNum._2
           hostHandled.append(hosts(currentHostIndex))
           break
         }
@@ -695,16 +693,16 @@ object CarbonDataRDDFactory extends Logging {
     val hostSelected = hosts(currentHostIndex)
     var assignedBlockNum = 0
     breakable {
-      for (i <- blocksList.indices) {
+      blocksList.foreach { block =>
         // get the local block which belong to selected host
-        if (blocksList(i).getLocations.contains(hostSelected)) {
-          blocksGroupby.append((hostSelected, blocksList(i)))
+        if (block.getLocations.contains(hostSelected)) {
+          blocksGroupby.append((hostSelected, block))
           assignedBlockNum += 1
-          blocksList(i).getLocations.foreach { location =>
+          block.getLocations.foreach { location =>
             // delete the block replication info which store in blockNumInhost
             blockNumInHost(hosts.indexOf(location)) -= 1
           }
-          blocksList.remove(i)
+          blocksList.-=(block)
           if (assignBlockOnebyOne) {
             break
           } else {
@@ -713,13 +711,12 @@ object CarbonDataRDDFactory extends Logging {
             }
           }
         }
-        // check if local block is no enough
-        // record how many no local block need to use to reach the min block num
-        if (i == blocksList.length) {
-          if (noLocalBlocksNumInHost(currentHostIndex) == 0) {
-            noLocalBlocksNumInHost(currentHostIndex) = minBlocksNumPerHost - assignedBlockNum
-          }
-        }
+      }
+      // record how many no local block need to use to reach the min block num
+      // at the first assign round
+      if (noLocalBlocksNumInHost(currentHostIndex) == 0
+      && !assignBlockOnebyOne) {
+        noLocalBlocksNumInHost(currentHostIndex) = minBlocksNumPerHost - assignedBlockNum
       }
     }
   }
