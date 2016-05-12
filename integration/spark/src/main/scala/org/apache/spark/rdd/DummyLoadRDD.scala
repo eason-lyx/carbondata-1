@@ -25,18 +25,18 @@ import org.apache.spark._
 
 /**
  * this RDD use to get Task host
- * return (host)
- *
- * @param prev
+ * return (hostname,taskhost)
+  *
+  * @param prev
  */
 class DummyLoadRDD(prev: NewHadoopRDD[LongWritable, Text])
-  extends RDD[(String)](prev) {
+  extends RDD[(String, String)](prev) {
 
   override def getPartitions: Array[Partition] = firstParent[(LongWritable, Text)].partitions
 
   override def compute(theSplit: Partition,
-                       context: TaskContext): Iterator[(String)] = {
-    new Iterator[(String)] {
+                       context: TaskContext): Iterator[(String, String)] = {
+    new Iterator[(String, String)] {
       val split = theSplit.asInstanceOf[NewHadoopPartition]
       var finished = false
 
@@ -50,11 +50,10 @@ class DummyLoadRDD(prev: NewHadoopRDD[LongWritable, Text])
         }
       }
 
-      override def next(): (String) = {
-        val host = InetAddress.getLocalHost.getHostName
-        (host)
+      override def next(): (String, String) = {
+        // standalone mode:TaskContext.get.taskMetrics.hostname may return ip
+        (InetAddress.getLocalHost.getHostName, TaskContext.get.taskMetrics.hostname)
       }
     }
   }
-
 }

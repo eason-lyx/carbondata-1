@@ -386,16 +386,17 @@ object CarbonDataRDDFactory extends Logging {
             classOf[Text],
             hadoopConfiguration)
           val hosts = new DummyLoadRDD(newHadoopRDD).distinct().collect().sorted
-          val blockNumInHost: Array[Int] = new Array[Int](hosts.length)
+          val hostnames = hosts.map { hosts => hosts._1 }
+          val blockNumInHost: Array[Int] = new Array[Int](hostnames.length)
           val blockListWithNoSorted = SplitUtils.getSplits(filePaths, sc.sparkContext)
             .map { block =>
               val locations = block.getLocations.toBuffer
               // filter location which no exist in hosts
               locations.foreach { location =>
-                if (!hosts.contains(location)) {
+                if (!hostnames.contains(location)) {
                   locations.-=(location)
                 } else {
-                  blockNumInHost(hosts.indexOf(location)) += 1
+                  blockNumInHost(hostnames.indexOf(location)) += 1
                 }
               }
               block.setLocations(locations.toArray)
@@ -414,7 +415,10 @@ object CarbonDataRDDFactory extends Logging {
             blockLists.+=(block._2)
           }
           blockLists.appendAll(blockListsWithNonLocality)
-          blocksGroupBy = assignBlocksToHost(hosts, blockNumInHost, blockLists)
+          blocksGroupBy = assignBlocksToHost(hostnames, blockNumInHost, blockLists)
+            .map { groupby =>
+              (hosts.toMap.get(groupby._1).get, groupby._2)
+            }
       }
 
       val status = new
@@ -692,26 +696,34 @@ object CarbonDataRDDFactory extends Logging {
                                     ): Unit = {
     val hostSelected = hosts(currentHostIndex)
     var assignedBlockNum = 0
+    val blocksProcessed: ArrayBuffer[BlockDetails] = new ArrayBuffer[BlockDetails]()
     breakable {
       blocksList.foreach { block =>
-        // get the local block which belong to selected host
-        if (block.getLocations.contains(hostSelected)) {
-          blocksGroupby.append((hostSelected, block))
-          assignedBlockNum += 1
-          block.getLocations.foreach { location =>
-            // delete the block replication info which store in blockNumInhost
-            blockNumInHost(hosts.indexOf(location)) -= 1
-          }
-          blocksList.-=(block)
-          if (assignBlockOnebyOne) {
-            break
-          } else {
-            if (assignedBlockNum == minBlocksNumPerHost) {
+        if (!blocksProcessed.contains(block)) {
+          // get the local block which belong to selected host
+          if (block.getLocations.contains(hostSelected)) {
+            blocksGroupby.append((hostSelected, block))
+            assignedBlockNum += 1
+            block.getLocations.foreach { location =>
+              // delete the block replication info which store in blockNumInhost
+              blockNumInHost(hosts.indexOf(location)) -= 1
+            }
+            blocksProcessed.append(block)
+            if (assignBlockOnebyOne) {
               break
+            } else {
+              if (assignedBlockNum == minBlocksNumPerHost) {
+                break
+              }
             }
           }
         }
       }
+      // remove processed blocks
+      blocksProcessed.map { processed =>
+        blocksList.-=(processed)
+      }
+
       // record how many no local block need to use to reach the min block num
       // at the first assign round
       if (noLocalBlocksNumInHost(currentHostIndex) == 0
