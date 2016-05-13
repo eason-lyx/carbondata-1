@@ -550,7 +550,7 @@ object CarbonDataRDDFactory extends Logging {
 
   }
 
-  private def assignBlocksToHost(hosts: Array[String], blockNumInHost: Array[Int],
+  def assignBlocksToHost(hosts: Array[String], blockNumInHost: Array[Int],
                                  blocksList: ArrayBuffer[BlockDetails])
   : Array[(String, Array[BlockDetails])] = {
     val blocksGroupby: ArrayBuffer[(String, BlockDetails)] =
