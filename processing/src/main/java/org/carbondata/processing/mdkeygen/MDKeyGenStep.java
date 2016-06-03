@@ -318,7 +318,7 @@ public class MDKeyGenStep extends BaseStep {
     //To Set MDKey Index of each primitive type in complex type
     int surrIndex = simpleDimsCount;
     Iterator<Entry<String, GenericDataType>> complexMapIterator =
-      meta.getComplexTypes().entrySet().iterator();
+        meta.getComplexTypes().entrySet().iterator();
     Map<Integer, GenericDataType> complexMap = new HashMap<>();
     complexIndexMap = new HashMap<Integer, GenericDataType>(meta.getComplexDimsCount());
     // get the actual csv header
