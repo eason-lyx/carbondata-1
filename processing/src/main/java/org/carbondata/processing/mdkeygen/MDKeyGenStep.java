@@ -49,6 +49,7 @@ import org.carbondata.core.util.CarbonUtilException;
 import org.carbondata.core.util.DataTypeUtil;
 import org.carbondata.core.vo.ColumnGroupModel;
 import org.carbondata.processing.datatypes.GenericDataType;
+import org.carbondata.processing.graphgenerator.GraphGenerator;
 import org.carbondata.processing.store.CarbonDataFileAttributes;
 import org.carbondata.processing.store.CarbonFactDataHandlerColumnar;
 import org.carbondata.processing.store.CarbonFactDataHandlerModel;
@@ -316,16 +317,24 @@ public class MDKeyGenStep extends BaseStep {
 
     //To Set MDKey Index of each primitive type in complex type
     int surrIndex = simpleDimsCount;
-    Iterator<Entry<String, GenericDataType>> complexMap =
-        meta.getComplexTypes().entrySet().iterator();
+    Iterator<Entry<String, GenericDataType>> complexMapIterator =
+      meta.getComplexTypes().entrySet().iterator();
+    Map<Integer, GenericDataType> complexMap = new HashMap<>();
     complexIndexMap = new HashMap<Integer, GenericDataType>(meta.getComplexDimsCount());
-    while (complexMap.hasNext()) {
-      Entry<String, GenericDataType> complexDataType = complexMap.next();
+    // get the actual csv header
+    List<String> csvColumnsList = GraphGenerator.csvHeaderInfo.get(tempLocationKey);
+    while (complexMapIterator.hasNext()) {
+      Entry<String, GenericDataType> complexDataType = complexMapIterator.next();
       complexDataType.getValue().setOutputArrayIndex(0);
-      complexIndexMap.put(simpleDimsCount, complexDataType.getValue());
-      simpleDimsCount++;
+      complexMap.put(csvColumnsList.indexOf(complexDataType.getKey()), complexDataType.getValue());
+    }
+
+    // sort the key from complexMap in order to maping the schema and csv data
+    Object[] complexIndex = complexMap.keySet().toArray();
+    for (int i = 0; i < meta.getComplexDimsCount(); i++) {
+      complexIndexMap.put(simpleDimsCount++, complexMap.get(complexIndex[i]));
       List<GenericDataType> primitiveTypes = new ArrayList<GenericDataType>();
-      complexDataType.getValue().getAllPrimitiveChildren(primitiveTypes);
+      complexMap.get(complexIndex[i]).getAllPrimitiveChildren(primitiveTypes);
       for (GenericDataType eachPrimitive : primitiveTypes) {
         eachPrimitive.setSurrogateIndex(surrIndex++);
       }
@@ -515,6 +524,7 @@ public class MDKeyGenStep extends BaseStep {
     super.dispose(smi, sdi);
     dataHandler = null;
     finalMerger = null;
+    GraphGenerator.csvHeaderInfo.remove(meta.getSchemaName() + "_" + meta.getTableName());
   }
 
 }

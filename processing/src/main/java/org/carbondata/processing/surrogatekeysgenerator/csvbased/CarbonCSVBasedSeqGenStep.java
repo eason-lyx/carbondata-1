@@ -875,7 +875,7 @@ public class CarbonCSVBasedSeqGenStep extends BaseStep {
 
     Map<String, Dictionary> dictionaryCaches = surrogateKeyGen.getDictionaryCaches();
     Object[] out =
-        new Object[meta.normLength + meta.msrs.length - meta.complexTypes.size()];
+        new Object[meta.normLength + meta.msrs.length];
     int dimLen = meta.dims.length;
 
     Object[] newArray = new Object[CarbonCommonConstants.ARRAYSIZE];

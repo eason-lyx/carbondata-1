@@ -109,6 +109,19 @@ class TestLoadDataWithHiveSyntax extends QueryTest with BeforeAndAfterAll {
     sql("drop table if exists complexcarbontable")
   }
 
+  test("nesting complex types data loading with Dictionary_include contain double datatype") {
+    sql("create table complexcarbontable(deviceInformationId int, channelsId string," +
+      "ROMSize string, purchasedate string, mobile struct<imei:string, imsi:string>," +
+      "MAC array<string>, locationinfo array<struct<ActiveAreaId:int, ActiveCountry:string, ActiveProvince:string, Activecity:string, ActiveDistrict:string, ActiveStreet:string>>," +
+      "proddate struct<productionDate:string,activeDeactivedate:array<string>>, gamePointId double,contractNumber double) " +
+      "STORED BY 'org.apache.carbondata.format' " +
+      "TBLPROPERTIES ('DICTIONARY_INCLUDE'='gamePointId')")
+    sql("LOAD DATA local inpath './src/test/resources/complexdata.csv' INTO table complexcarbontable " +
+      "OPTIONS('DELIMITER'=',', 'QUOTECHAR'='\"', 'FILEHEADER'='deviceInformationId,channelsId,ROMSize,purchasedate,mobile,MAC,locationinfo,proddate,gamePointId,contractNumber'," +
+      "'COMPLEX_DELIMITER_LEVEL_1'='$', 'COMPLEX_DELIMITER_LEVEL_2'=':')")
+    sql("drop table if exists complexcarbontable")
+  }
+
   test("test carbon table data loading with csv file Header in caps") {
     sql("drop table if exists header_test")
     sql("create table header_test(empno int, empname String, designation string, doj String, workgroupcategory int, workgroupcategoryname String,deptno int, deptname String, projectcode int, projectjoindate String,projectenddate String, attendance String,utilization String,salary String) STORED BY 'org.apache.carbondata.format'")

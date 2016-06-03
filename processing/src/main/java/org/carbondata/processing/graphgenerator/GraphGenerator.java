@@ -67,7 +67,16 @@ import org.pentaho.di.trans.steps.tableinput.TableInputMeta;
 
 public class GraphGenerator {
 
+  /**
+   * global block info
+   */
   public static final HashMap<String, BlockDetails[]> blockInfo = new HashMap<>();
+
+  /**
+   * global csv header info
+   */
+  public static final HashMap<String,List<String>> csvHeaderInfo = new HashMap<>();
+
   /**
    * DEFAUL_BLOCKLET_SIZE
    */

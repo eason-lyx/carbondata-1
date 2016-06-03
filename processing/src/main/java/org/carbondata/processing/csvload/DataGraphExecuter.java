@@ -40,6 +40,7 @@ import org.carbondata.processing.constants.DataProcessorConstants;
 import org.carbondata.processing.csvreaderstep.CsvInputMeta;
 import org.carbondata.processing.dataprocessor.IDataProcessStatus;
 import org.carbondata.processing.etl.DataLoadingException;
+import org.carbondata.processing.graphgenerator.GraphGenerator;
 import org.carbondata.processing.surrogatekeysgenerator.csvbased.BadRecordslogger;
 
 import org.apache.commons.vfs.FileSystemException;
@@ -475,6 +476,9 @@ public class DataGraphExecuter {
       throw new DataLoadingException(DataProcessorConstants.CSV_VALIDATION_ERRROR_CODE,
           "CSV File provided is not proper. Column names in schema and csv header are not same.");
     }
+
+    GraphGenerator.csvHeaderInfo.put(schema.getCarbonTable().getDatabaseName() + "_"
+        + schema.getCarbonTable().getFactTableName(), csvColumnsList);
   }
 
   /**

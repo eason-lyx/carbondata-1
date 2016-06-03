@@ -20,7 +20,7 @@ package org.apache.spark.sql
 import java.util.regex.{Matcher, Pattern}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.LinkedHashSet
+import scala.collection.mutable.{ArrayBuffer, LinkedHashSet}
 import scala.language.implicitConversions
 
 import org.apache.hadoop.hive.ql.lib.Node
@@ -482,9 +482,29 @@ class CarbonSqlParser()
 
     tableModel(ifNotExistPresent,
       dbName.getOrElse("default"), dbName, tableName,
-      dims.map(f => normalizeType(f)).map(f => addParent(f)),
+      reOrderDimensions(dims.map(f => normalizeType(f)).map(f => addParent(f))),
       msrs.map(f => normalizeType(f)), "", null, "",
       None, Seq(), null, Option(noDictionaryDims), null, partitioner, groupCols)
+  }
+
+  /**
+   * reorder the dimensions,complex type will be at last
+   * @param dims
+   * @return
+   */
+  protected def reOrderDimensions(dims: Seq[Field]): Seq[Field] = {
+    val complexDims: ArrayBuffer[Field] = new ArrayBuffer()
+    val otherDims: ArrayBuffer[Field] = new ArrayBuffer()
+    dims.foreach { dim =>
+      dim.dataType.getOrElse("NIL") match {
+        case "Array" =>
+          complexDims.+=(dim)
+        case "Struct" =>
+          complexDims.+=(dim)
+        case _ => otherDims.+=(dim)
+      }
+    }
+    otherDims.++(complexDims).toSeq
   }
 
   /**
