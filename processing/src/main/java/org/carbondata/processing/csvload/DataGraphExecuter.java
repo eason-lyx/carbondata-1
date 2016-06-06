@@ -157,6 +157,11 @@ public class DataGraphExecuter {
           "Header Columns are not present in the provided CSV File:" + f.getName());
 
     }
+
+    if (GraphGenerator.csvHeaderInfo.get(schemaInfo.getSchemaName() + "_" + tableName) == null) {
+      GraphGenerator.csvHeaderInfo.put(schemaInfo.getSchemaName() + "_" + tableName,
+          GraphExecutionUtil.getActualCSVHeader(f.getAbsolutePath(), columnNames, delimiter));
+    }
   }
 
   public void executeGraph(String graphFilePath, List<String> measureColumns, SchemaInfo schemaInfo,

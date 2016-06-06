@@ -25,10 +25,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import org.carbondata.common.logging.LogService;
 import org.carbondata.common.logging.LogServiceFactory;
@@ -195,7 +192,7 @@ public final class GraphExecutionUtil {
   /**
    * This method update the column Name
    *
-   * @param cube
+   * @param schema
    * @param tableName
    * @param schema
    */
@@ -332,11 +329,32 @@ public final class GraphExecutionUtil {
           count++;
         }
       }
-
       return (count == columnNames.length);
     }
 
     return false;
+  }
+
+  /**
+   * get the csv header
+   * @param csvFilePath
+   * @param columnNames
+   * @param delimiter
+   * @return
+   */
+  public static List<String> getActualCSVHeader(String csvFilePath, String[] columnNames,
+                                               String delimiter) {
+    String readLine = readCSVFile(csvFilePath);
+
+    String[] columnFromCSV = readLine.toLowerCase().split(delimiter);
+
+    List<String> csvColumnsList = new ArrayList<String>(CarbonCommonConstants.CONSTANT_SIZE_TEN);
+
+    for (String column : columnFromCSV) {
+      csvColumnsList.add(column.replaceAll("\"", "").trim());
+    }
+
+    return csvColumnsList;
   }
 
   public static Set<String> getDimensionColumnNames(String dimTableName,
