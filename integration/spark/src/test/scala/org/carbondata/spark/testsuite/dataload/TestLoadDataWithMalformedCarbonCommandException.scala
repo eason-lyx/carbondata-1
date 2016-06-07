@@ -170,7 +170,7 @@ class TestLoadDataWithMalformedCarbonCommandException extends QueryTest with Bef
     }
   }
 
-  test("complex data type in front of primitive data type") {
+  test("test complex data type in front of primitive data type") {
     try{
       buildTableWithComplexDimPosBeforePrimitiveDimPos()
     } catch{

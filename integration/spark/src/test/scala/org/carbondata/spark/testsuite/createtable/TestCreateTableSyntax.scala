@@ -37,8 +37,8 @@ class TestCreateTableSyntax extends QueryTest with BeforeAndAfterAll {
   }
 
   test("Struct field with underscore and struct<struct> syntax check") {
-    sql("create table carbontable(id int, username struct<sur_name:string," +
-        "actual_name:struct<first_name:string,last_name:string>>, country string, salary double)" +
+    sql("create table carbontable(id int, country string, username struct<sur_name:string," +
+        "actual_name:struct<first_name:string,last_name:string>>, salary double)" +
         "STORED BY 'org.apache.carbondata.format'")
     sql("describe carbontable").show
     sql("drop table if exists carbontable")
@@ -46,8 +46,8 @@ class TestCreateTableSyntax extends QueryTest with BeforeAndAfterAll {
   
   test("test carbon table create with complex datatype as dictionary exclude") {
     try {
-      sql("create table carbontable(id int, name string, dept string, mobile array<string>, "+
-          "country string, salary double) STORED BY 'org.apache.carbondata.format' " +
+      sql("create table carbontable(id int, name string, dept string, country string," +
+        "mobile array<string>, salary double) STORED BY 'org.apache.carbondata.format' " +
           "TBLPROPERTIES('DICTIONARY_EXCLUDE'='dept,mobile')")
     } catch {
       case e : MalformedCarbonCommandException => {
