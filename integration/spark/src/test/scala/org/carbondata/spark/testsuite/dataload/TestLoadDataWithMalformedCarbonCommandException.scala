@@ -82,6 +82,15 @@ class TestLoadDataWithMalformedCarbonCommandException extends QueryTest with Bef
       """)
   }
 
+  def buildTableWithComplexDimPosBeforePrimitiveDimPos() = {
+    sql("create table complexcarbontable(deviceInformationId int, channelsId string," +
+      "ROMSize string, purchasedate string, mobile struct<imei:string, imsi:string>," +
+      "MAC array<string>, locationinfo array<struct<ActiveAreaId:int, ActiveCountry:string, ActiveProvince:string, Activecity:string, ActiveDistrict:string, ActiveStreet:string>>," +
+      "proddate struct<productionDate:string,activeDeactivedate:array<string>>, gamePointId double,contractNumber double) " +
+      "STORED BY 'org.apache.carbondata.format' " +
+      "TBLPROPERTIES ('DICTIONARY_INCLUDE'='gamePointId')")
+  }
+
   test("test load data with dictionary exclude columns which no exist in table.") {
     try {
       buildTableWithNoExistDictExclude()
@@ -157,6 +166,16 @@ class TestLoadDataWithMalformedCarbonCommandException extends QueryTest with Bef
       case e: MalformedCarbonCommandException =>
         assert(e.getMessage.equals("DICTIONARY_EXCLUDE can not contain the same column: country " +
           "with DICTIONARY_INCLUDE. Please check create table statement."))
+      case _ => assert(false)
+    }
+  }
+
+  test("complex data type in front of primitive data type") {
+    try{
+      buildTableWithComplexDimPosBeforePrimitiveDimPos()
+    } catch{
+      case e: MalformedCarbonCommandException =>
+        assert(e.getMessage.equals("Complext data type column should be at the end of dimensions, please check the create statement."))
       case _ => assert(false)
     }
   }

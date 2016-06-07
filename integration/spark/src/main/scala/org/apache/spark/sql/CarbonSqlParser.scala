@@ -480,31 +480,37 @@ class CarbonSqlParser()
 
     val partitioner: Option[Partitioner] = getPartitionerObject(partitionCols, tableProperties)
 
+    if (!checkComplexDimPos(dims)) {
+      val errorMsg = "Complext data type column should be at the end of dimensions, " +
+        "please check the create statement."
+      throw new MalformedCarbonCommandException(errorMsg)
+    }
+
     tableModel(ifNotExistPresent,
       dbName.getOrElse("default"), dbName, tableName,
-      reOrderDimensions(dims.map(f => normalizeType(f)).map(f => addParent(f))),
+      dims.map(f => normalizeType(f)).map(f => addParent(f)),
       msrs.map(f => normalizeType(f)), "", null, "",
       None, Seq(), null, Option(noDictionaryDims), null, partitioner, groupCols)
   }
 
   /**
-   * reorder the dimensions,complex type will be at last
+   * check the dimensions whether complex type at last
    * @param dims
    * @return
    */
-  protected def reOrderDimensions(dims: Seq[Field]): Seq[Field] = {
-    val complexDims: ArrayBuffer[Field] = new ArrayBuffer()
-    val otherDims: ArrayBuffer[Field] = new ArrayBuffer()
-    dims.foreach { dim =>
-      dim.dataType.getOrElse("NIL") match {
-        case "Array" =>
-          complexDims.+=(dim)
-        case "Struct" =>
-          complexDims.+=(dim)
-        case _ => otherDims.+=(dim)
+  protected def checkComplexDimPos(dims: Seq[Field]): Boolean = {
+    val complexDims: ArrayBuffer[(Field, Integer)] = new ArrayBuffer()
+    val otherDims: ArrayBuffer[(Field, Integer)] = new ArrayBuffer()
+    dims.zipWithIndex.foreach { dim =>
+      dim._1.dataType.getOrElse("NIL") match {
+        case "array" =>
+          complexDims.+=((dim._1, dim._2))
+        case "struct" =>
+          complexDims.+=((dim._1, dim._2))
+        case _ => otherDims.+=((dim._1, dim._2))
       }
     }
-    otherDims.++(complexDims).toSeq
+    if (complexDims.nonEmpty) complexDims.head._2 > otherDims.last._2 else true
   }
 
   /**

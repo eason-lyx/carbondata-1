@@ -41,22 +41,19 @@ public class RemoveDictionaryUtil {
    * @param byteBufferArr
    */
   public static void prepareOut(Object[] newOutArr, ByteBuffer[] byteBufferArr, Object[] out,
-      int dimCount, int complexDimCount) {
+      int dimCount) {
 
-    int primitiveDimCount = dimCount - complexDimCount;
     byte[] nonDictionaryCols =
         RemoveDictionaryUtil.packByteBufferIntoSingleByteArray(byteBufferArr);
-    Integer[] dimArray = new Integer[primitiveDimCount];
-    for (int i = 0; i < primitiveDimCount; i++) {
+    Integer[] dimArray = new Integer[dimCount];
+    for (int i = 0; i < dimCount; i++) {
       dimArray[i] = (Integer) out[i];
     }
 
     Object[] measureArray = new Object[out.length - dimCount];
     int index = 0;
-    for (int j = primitiveDimCount; j < out.length && index < measureArray.length; j++) {
-      if (out[j] != null) {
-        measureArray[index++] = out[j];
-      }
+    for (int j = dimCount; j < out.length; j++) {
+      measureArray[index++] = out[j];
     }
 
     newOutArr[IgnoreDictionary.DIMENSION_INDEX_IN_ROW.getIndex()] = dimArray;
