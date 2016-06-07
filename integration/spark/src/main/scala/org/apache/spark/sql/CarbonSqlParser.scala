@@ -510,7 +510,7 @@ class CarbonSqlParser()
         case _ => otherDims += ((dim._2))
       }
     }
-    if (complexDims.nonEmpty) complexDims.head > otherDims.last else true
+    if (complexDims.nonEmpty && otherDims.nonEmpty) complexDims.head > otherDims.last else true
   }
 
   /**
