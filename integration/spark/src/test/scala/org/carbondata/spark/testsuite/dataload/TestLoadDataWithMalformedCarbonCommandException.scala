@@ -169,14 +169,4 @@ class TestLoadDataWithMalformedCarbonCommandException extends QueryTest with Bef
       case _ => assert(false)
     }
   }
-
-  test("test complex data type in front of primitive data type") {
-    try{
-      buildTableWithComplexDimPosBeforePrimitiveDimPos()
-    } catch{
-      case e: MalformedCarbonCommandException =>
-        assert(e.getMessage.equals("Complext data type column should be at the end of dimensions, please check the create statement."))
-      case _ => assert(false)
-    }
-  }
 }
