@@ -875,7 +875,7 @@ public class CarbonCSVBasedSeqGenStep extends BaseStep {
 
     Map<String, Dictionary> dictionaryCaches = surrogateKeyGen.getDictionaryCaches();
     Object[] out =
-        new Object[meta.normLength + meta.msrs.length - meta.complexTypes.size()];
+        new Object[meta.normLength + meta.msrs.length];
     int dimLen = meta.dims.length;
 
     Object[] newArray = new Object[CarbonCommonConstants.ARRAYSIZE];
@@ -930,7 +930,7 @@ public class CarbonCSVBasedSeqGenStep extends BaseStep {
           out[memberMapping[dimLen + index]] = surrogate.doubleValue();
         } else {
           try {
-            out[memberMapping[dimLen - meta.complexTypes.size() + index]] =
+            out[memberMapping[dimLen + index]] =
                 (isNull || msr == null || msr.length() == 0) ?
                     null :
                     DataTypeUtil
@@ -1057,7 +1057,6 @@ public class CarbonCSVBasedSeqGenStep extends BaseStep {
             throw new KettleException(
                 "Parsing complex string and generating surrogates/ByteArray failed. ", e1);
           }
-          i++;
         } else {
           Dictionary dicCache = dictionaryCaches.get(foreignKeyColumnName);
 
@@ -1146,7 +1145,7 @@ public class CarbonCSVBasedSeqGenStep extends BaseStep {
 
     insertHierIfRequired(out);
     RemoveDictionaryUtil
-      .prepareOut(newArray, byteBufferArr, out, dimLen - meta.complexTypes.size());
+      .prepareOut(newArray, byteBufferArr, out, dimLen, meta.complexTypes.size(), memberMapping);
 
     return newArray;
   }

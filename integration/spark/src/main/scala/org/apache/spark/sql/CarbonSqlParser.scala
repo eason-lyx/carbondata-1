@@ -477,13 +477,7 @@ class CarbonSqlParser()
       fields, tableProperties)
     val msrs: Seq[Field] = extractMsrColsFromFields(fields, tableProperties)
 
-
     val partitioner: Option[Partitioner] = getPartitionerObject(partitionCols, tableProperties)
-
-    if (!checkComplexDimPos(dims)) {
-      throw new MalformedCarbonCommandException("Complext data type column should be at the end" +
-        " of dimensions, please check the create statement.")
-    }
 
     tableModel(ifNotExistPresent,
       dbName.getOrElse("default"), dbName, tableName,
@@ -492,26 +486,7 @@ class CarbonSqlParser()
       None, Seq(), null, Option(noDictionaryDims), null, partitioner, groupCols)
   }
 
-  /**
-   * check the dimensions whether complex type at last
-   *
-   * @param dims
-   * @return
-   */
-  protected def checkComplexDimPos(dims: Seq[Field]): Boolean = {
-    val complexDims: ArrayBuffer[Integer] = new ArrayBuffer()
-    val otherDims: ArrayBuffer[Integer] = new ArrayBuffer()
-    dims.zipWithIndex.foreach { dim =>
-      dim._1.dataType.getOrElse("NIL") match {
-        case "array" =>
-          complexDims += ((dim._2))
-        case "struct" =>
-          complexDims += ((dim._2))
-        case _ => otherDims += ((dim._2))
-      }
-    }
-    if (complexDims.nonEmpty && otherDims.nonEmpty) complexDims.head > otherDims.last else true
-  }
+
 
   /**
    * Extract the column groups configuration from table properties.

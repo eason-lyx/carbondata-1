@@ -929,9 +929,9 @@ public class GraphGenerator {
     // boolean[] NoDictionaryMapping = new boolean[dims.size()];
     List<Boolean> noDictionaryMapping = new ArrayList<Boolean>();
     for (CarbonDimension dimension : dims) {
-      // for  complex type need to break the loop
+      // skip complex datatype
       if (dimension.getNumberOfChild() > 0) {
-        break;
+        continue;
       }
 
       if (!dimension.getEncoder().contains(Encoding.DICTIONARY)) {

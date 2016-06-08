@@ -1566,9 +1566,9 @@ public final class CarbonUtil {
     Set<Integer> processedColumnGroup = new HashSet<Integer>();
     for (CarbonDimension carbonDimension : tableDimensionList) {
       List<CarbonDimension> childs = carbonDimension.getListOfChildDimensions();
-      //assuming complex dimensions will always be atlast
+      //skiping complex dimensions
       if(null != childs && childs.size() > 0) {
-        break;
+        continue;
       }
       if (carbonDimension.isColumnar() && hasEncoding(carbonDimension.getEncoder(),
           Encoding.DICTIONARY)) {
