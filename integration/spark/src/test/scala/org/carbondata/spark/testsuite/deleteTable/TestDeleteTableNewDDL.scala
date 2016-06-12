@@ -54,35 +54,6 @@ class TestDeleteTableNewDDL extends QueryTest with BeforeAndAfterAll {
     }
   }
 
-  test("test delete segments by load date with case-insensitive tablename") {
-    val pwd = new File(this.getClass.getResource("/").getPath + "/../../").getCanonicalPath
-    val filePath = pwd + "/src/test/resources/emptyDimensionData.csv"
-    sql(
-      """
-           CREATE TABLE IF NOT EXISTS t3
-           (ID Int, date Timestamp, country String,
-           name String, phonetype String, serialname String, salary Int)
-           STORED BY 'org.apache.carbondata.format'
-           TBLPROPERTIES('DICTIONARY_EXCLUDE'='country,phonetype,serialname',
-           'DICTIONARY_INCLUDE'='ID')
-      """)
-
-    sql(
-      s"""
-           LOAD DATA LOCAL INPATH '$filePath' into table t3
-           """)
-
-    checkAnswer(
-      sql("select count(*) from t3"), Seq(Row(20)))
-
-    sql("delete segments from table t3 where starttime before '2099-07-28 11:00:00'")
-
-    checkAnswer(
-      sql("select count(*) from t3"), Seq(Row(0)))
-
-    //drop test table
-    sql("drop table t3")
-  }
   override def afterAll: Unit = {
 
   }
