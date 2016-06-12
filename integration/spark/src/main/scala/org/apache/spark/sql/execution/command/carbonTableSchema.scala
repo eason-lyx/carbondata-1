@@ -1388,7 +1388,7 @@ private[sql] case class DeleteLoadsByLoadDate(
 
 
     var invalidLoadTimestamps = segmentStatusManager.updateDeletionStatus(loadDate, path).asScala
-    LOGGER.audit("The delete load by Id is successfull.")
+    LOGGER.audit("The delete load by date is successfull.")
     Seq.empty
 
   }

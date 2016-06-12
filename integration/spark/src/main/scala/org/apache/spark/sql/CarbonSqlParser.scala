@@ -1318,7 +1318,11 @@ class CarbonSqlParser()
     SHOW ~> (LOADS|SEGMENTS) ~> FOR ~> (CUBE | TABLE) ~> (ident <~ ".").? ~ ident ~
       (LIMIT ~> numericLit).? <~
       opt(";") ^^ {
-      case schemaName ~ cubeName ~ limit => ShowLoadsCommand(schemaName, cubeName, limit)
+      case database ~ table ~ limit =>
+        ShowLoadsCommand(
+          if (database.nonEmpty) Some(database.get.trim.toLowerCase) else database,
+          table.trim.toLowerCase,
+          limit)
     }
 
   protected lazy val deleteLoadsByID: Parser[LogicalPlan] =
@@ -1326,7 +1330,11 @@ class CarbonSqlParser()
       (ident <~ ".").? ~ ident) <~
       opt(";") ^^ {
       case loadids ~ cube => cube match {
-        case schemaName ~ cubeName => DeleteLoadsById(loadids, schemaName, cubeName)
+        case database ~ table =>
+          DeleteLoadsById(
+            loadids,
+            if (database.nonEmpty) Some(database.get.trim.toLowerCase) else database,
+            table.trim.toLowerCase)
       }
     }
 
@@ -1335,26 +1343,37 @@ class CarbonSqlParser()
     DELETE ~> (LOADS|SEGMENTS) ~> FROM ~> (CUBE | TABLE) ~> (ident <~ ".").? ~ ident ~
       (WHERE ~> (STARTTIME <~ BEFORE) ~ stringLit) <~
       opt(";") ^^ {
-      case schema ~ cube ~ condition =>
+      case database ~ table ~ condition =>
         condition match {
           case dateField ~ dateValue =>
-            DeleteLoadsByLoadDate(schema, cube, dateField, dateValue)
+            DeleteLoadsByLoadDate(
+              if (database.nonEmpty) Some(database.get.trim.toLowerCase) else database,
+              table.trim.toLowerCase,
+              dateField,
+              dateValue)
         }
     }
 
   protected lazy val deleteLoadsByDate: Parser[LogicalPlan] =
     DELETE ~> FROM ~> CUBE ~> (ident <~ ".").? ~ ident ~ (WHERE ~> (ident <~ BEFORE) ~ stringLit) <~
       opt(";") ^^ {
-      case schema ~ cube ~ condition =>
+      case database ~ table ~ condition =>
         condition match {
           case dateField ~ dateValue =>
-            DeleteLoadByDate(schema, cube, dateField, dateValue)
+            DeleteLoadByDate(
+              if (database.nonEmpty) Some(database.get.trim.toLowerCase) else database,
+              table.trim.toLowerCase,
+              dateField,
+              dateValue)
         }
     }
 
   protected lazy val cleanFiles: Parser[LogicalPlan] =
     CLEAN ~> FILES ~> FOR ~> (CUBE | TABLE) ~> (ident <~ ".").? ~ ident <~ opt(";") ^^ {
-      case schemaName ~ cubeName => CleanFiles(schemaName, cubeName)
+      case database ~ table =>
+        CleanFiles(
+          if (database.nonEmpty) Some(database.get.trim.toLowerCase) else database,
+          table.trim.toLowerCase)
     }
 
 }
