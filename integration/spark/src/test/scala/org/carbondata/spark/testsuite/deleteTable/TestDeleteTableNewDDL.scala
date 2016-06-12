@@ -1,8 +1,5 @@
 package org.carbondata.spark.testsuite.deleteTable
 
-import java.io.File
-
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.common.util.CarbonHiveContext._
 import org.apache.spark.sql.common.util.QueryTest
 import org.scalatest.BeforeAndAfterAll
