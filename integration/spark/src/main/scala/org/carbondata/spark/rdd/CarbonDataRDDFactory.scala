@@ -727,7 +727,7 @@ object CarbonDataRDDFactory extends Logging {
         var message: String = ""
         logInfo("********starting clean up**********")
         if (isAgg) {
-          //TODO:need to clean aggTable
+          // TODO:need to clean aggTable
           CarbonLoaderUtil.deleteTable(partitioner.partitionCount, carbonLoadModel.getDatabaseName,
             carbonLoadModel.getTableName, carbonLoadModel.getAggTableName, hdfsStoreLocation,
             currentRestructNumber
@@ -736,10 +736,10 @@ object CarbonDataRDDFactory extends Logging {
         } else {
           val (result, _) = status(0)
           val newSlice = CarbonCommonConstants.LOAD_FOLDER + result
-          CarbonLoaderUtil.deleteSegment(carbonLoadModel,currentLoadCount)
+          CarbonLoaderUtil.deleteSegment(carbonLoadModel, currentLoadCount)
           val aggTables = carbonTable.getAggregateTablesName
           if (null != aggTables && !aggTables.isEmpty) {
-            //TODO:need to clean aggTable
+            // TODO:need to clean aggTable
             aggTables.asScala.foreach { aggTableName =>
               CarbonLoaderUtil
                 .deleteSlice(partitioner.partitionCount, carbonLoadModel.getDatabaseName,

@@ -257,15 +257,15 @@ public final class CarbonLoaderUtil {
 
   public static void deleteSegment(CarbonLoadModel loadModel, int currentLoad) {
     CarbonTable carbonTable = CarbonMetadata.getInstance()
-      .getCarbonTable(loadModel.getDatabaseName() + CarbonCommonConstants.UNDERSCORE + loadModel
+        .getCarbonTable(loadModel.getDatabaseName() + CarbonCommonConstants.UNDERSCORE + loadModel
         .getTableName());
     CarbonTablePath carbonTablePath = CarbonStorePath.getCarbonTablePath(loadModel.getStorePath(),
-      carbonTable.getCarbonTableIdentifier());
+        carbonTable.getCarbonTableIdentifier());
 
     for (int i = 0; i < carbonTable.getPartitionCount(); i++) {
       String segmentPath = carbonTablePath
-        .getCarbonDataDirectoryPath(i + "", currentLoad + "")
-        .replace("\\", "/");
+          .getCarbonDataDirectoryPath(i + "", currentLoad + "")
+          .replace("\\", "/");
       deleteStorePath(segmentPath);
     }
   }
@@ -288,7 +288,7 @@ public final class CarbonLoaderUtil {
 
   public static void deletePartialLoadDataIfExist(CarbonLoadModel loadModel) throws IOException {
     String tableStatusPath =
-      loadModel.getCarbonDataLoadSchema().getCarbonTable().getMetaDataFilepath() + File.separator
+        loadModel.getCarbonDataLoadSchema().getCarbonTable().getMetaDataFilepath() + File.separator
         + CarbonCommonConstants.LOADMETADATA_FILENAME;
     Gson gsonObjectToRead = new Gson();
     DataInputStream dataInputStream = null;
@@ -298,7 +298,7 @@ public final class CarbonLoaderUtil {
         dataInputStream = FileFactory
           .getDataInputStream(tableStatusPath, FileFactory.getFileType(tableStatusPath));
         BufferedReader buffReader = new BufferedReader(new InputStreamReader(dataInputStream,
-          CarbonCommonConstants.CARBON_DEFAULT_STREAM_ENCODEFORMAT));
+            CarbonCommonConstants.CARBON_DEFAULT_STREAM_ENCODEFORMAT));
         listOfLoadFolderDetailsArray =
           gsonObjectToRead.fromJson(buffReader, LoadMetadataDetails[].class);
       }
@@ -306,10 +306,10 @@ public final class CarbonLoaderUtil {
       CarbonUtil.closeStreams(dataInputStream);
     }
     CarbonTable carbonTable = CarbonMetadata.getInstance()
-      .getCarbonTable(loadModel.getDatabaseName() + CarbonCommonConstants.UNDERSCORE + loadModel
+        .getCarbonTable(loadModel.getDatabaseName() + CarbonCommonConstants.UNDERSCORE + loadModel
         .getTableName());
     CarbonTablePath carbonTablePath = CarbonStorePath.getCarbonTablePath(loadModel.getStorePath(),
-      carbonTable.getCarbonTableIdentifier());
+        carbonTable.getCarbonTableIdentifier());
     final List<String> loadFolders = new ArrayList<String>();
     if (listOfLoadFolderDetailsArray == null) {
       //delete all files which in table folder
@@ -325,8 +325,9 @@ public final class CarbonLoaderUtil {
     } else {
       for (LoadMetadataDetails loadMetadata : listOfLoadFolderDetailsArray) {
         loadFolders.add(carbonTablePath
-          .getCarbonDataDirectoryPath(loadMetadata.getPartitionCount(),loadMetadata.getLoadName())
-          .replace("\\", "/"));
+            .getCarbonDataDirectoryPath(loadMetadata.getPartitionCount(),
+              loadMetadata.getLoadName())
+            .replace("\\", "/"));
       }
       //delete files which in Partition folder
       for (int i = 0; i < carbonTable.getPartitionCount(); i++) {
