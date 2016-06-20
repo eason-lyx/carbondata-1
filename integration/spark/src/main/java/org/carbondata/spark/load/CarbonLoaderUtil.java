@@ -255,6 +255,21 @@ public final class CarbonLoaderUtil {
     }
   }
 
+  public static void deleteSegment(CarbonLoadModel loadModel, int currentLoad) {
+    CarbonTable carbonTable = CarbonMetadata.getInstance()
+      .getCarbonTable(loadModel.getDatabaseName() + CarbonCommonConstants.UNDERSCORE + loadModel
+        .getTableName());
+    CarbonTablePath carbonTablePath = CarbonStorePath.getCarbonTablePath(loadModel.getStorePath(),
+      carbonTable.getCarbonTableIdentifier());
+
+    for (int i = 0; i < carbonTable.getPartitionCount(); i++) {
+      String segmentPath = carbonTablePath
+        .getCarbonDataDirectoryPath(i + "", currentLoad + "")
+        .replace("\\", "/");
+      deleteStorePath(segmentPath);
+    }
+  }
+
   public static void deleteSlice(int partitionCount, String schemaName, String cubeName,
       String tableName, String hdfsStoreLocation, int currentRestructNumber, String loadFolder) {
     String tableLoc = null;
@@ -271,43 +286,66 @@ public final class CarbonLoaderUtil {
     }
   }
 
-  public static void deletePartialLoadDataIfExist(int partitionCount, String schemaName,
-      String cubeName, String tableName, String hdfsStoreLocation, int currentRestructNumber,
-      int loadFolder) throws IOException {
-    String tableLoc = null;
-    String partitionSchemaName = null;
-    String partitionCubeName = null;
-    for (int i = 0; i < partitionCount; i++) {
-      partitionSchemaName = schemaName + '_' + i;
-      partitionCubeName = cubeName + '_' + i;
-      tableLoc =
-          getTableLocation(partitionSchemaName, partitionCubeName, tableName, hdfsStoreLocation,
-              currentRestructNumber);
-
-      final List<String> loadFolders = new ArrayList<String>();
-      for (int j = 0; j < loadFolder; j++) {
-        loadFolders.add(
-            (tableLoc + File.separator + CarbonCommonConstants.LOAD_FOLDER + j).replace("\\", "/"));
+  public static void deletePartialLoadDataIfExist(CarbonLoadModel loadModel) throws IOException {
+    String tableStatusPath =
+      loadModel.getCarbonDataLoadSchema().getCarbonTable().getMetaDataFilepath() + File.separator
+        + CarbonCommonConstants.LOADMETADATA_FILENAME;
+    Gson gsonObjectToRead = new Gson();
+    DataInputStream dataInputStream = null;
+    LoadMetadataDetails[] listOfLoadFolderDetailsArray = null;
+    try {
+      if (FileFactory.isFileExist(tableStatusPath, FileFactory.getFileType(tableStatusPath))) {
+        dataInputStream = FileFactory
+          .getDataInputStream(tableStatusPath, FileFactory.getFileType(tableStatusPath));
+        BufferedReader buffReader = new BufferedReader(new InputStreamReader(dataInputStream,
+          CarbonCommonConstants.CARBON_DEFAULT_STREAM_ENCODEFORMAT));
+        listOfLoadFolderDetailsArray =
+          gsonObjectToRead.fromJson(buffReader, LoadMetadataDetails[].class);
       }
-      if (loadFolder != 0) {
-        loadFolders.add(
-            (tableLoc + File.separator + CarbonCommonConstants.SLICE_METADATA_FILENAME + "."
-                + currentRestructNumber).replace("\\", "/"));
-      }
-      FileType fileType = FileFactory.getFileType(tableLoc);
-      if (FileFactory.isFileExist(tableLoc, fileType)) {
-        CarbonFile carbonFile = FileFactory.getCarbonFile(tableLoc, fileType);
-        CarbonFile[] listFiles = carbonFile.listFiles(new CarbonFileFilter() {
-          @Override public boolean accept(CarbonFile path) {
-            return !loadFolders.contains(path.getAbsolutePath().replace("\\", "/")) && !path
-                .getName().contains(CarbonCommonConstants.MERGERD_EXTENSION);
-          }
-        });
+    } finally {
+      CarbonUtil.closeStreams(dataInputStream);
+    }
+    CarbonTable carbonTable = CarbonMetadata.getInstance()
+      .getCarbonTable(loadModel.getDatabaseName() + CarbonCommonConstants.UNDERSCORE + loadModel
+        .getTableName());
+    CarbonTablePath carbonTablePath = CarbonStorePath.getCarbonTablePath(loadModel.getStorePath(),
+      carbonTable.getCarbonTableIdentifier());
+    final List<String> loadFolders = new ArrayList<String>();
+    if (listOfLoadFolderDetailsArray == null) {
+      //delete all files which in table folder
+      String tablePath = carbonTablePath.getPath() + File.separator + "Fact";
+      FileType fileType = FileFactory.getFileType(tablePath);
+      if (FileFactory.isFileExist(tablePath, fileType)) {
+        CarbonFile carbonFile = FileFactory.getCarbonFile(tablePath, fileType);
+        CarbonFile[] listFiles = carbonFile.listFiles();
         for (int k = 0; k < listFiles.length; k++) {
           deleteStorePath(listFiles[k].getAbsolutePath());
         }
       }
-
+    } else {
+      for (LoadMetadataDetails loadMetadata : listOfLoadFolderDetailsArray) {
+        loadFolders.add(carbonTablePath
+          .getCarbonDataDirectoryPath(loadMetadata.getPartitionCount(),loadMetadata.getLoadName())
+          .replace("\\", "/"));
+      }
+      //delete files which in Partition folder
+      for (int i = 0; i < carbonTable.getPartitionCount(); i++) {
+        String partitionPath = carbonTablePath.getPath() + File.separator + "Fact" + File.separator
+          + "Part" + i;
+        FileType fileType = FileFactory.getFileType(partitionPath);
+        if (FileFactory.isFileExist(partitionPath, fileType)) {
+          CarbonFile carbonFile = FileFactory.getCarbonFile(partitionPath, fileType);
+          CarbonFile[] listFiles = carbonFile.listFiles(new CarbonFileFilter() {
+            @Override
+            public boolean accept(CarbonFile path) {
+              return !loadFolders.contains(path.getAbsolutePath().replace("\\", "/"));
+            }
+          });
+          for (int k = 0; k < listFiles.length; k++) {
+            deleteStorePath(listFiles[k].getAbsolutePath());
+          }
+        }
+      }
     }
   }
 
