@@ -313,10 +313,10 @@ public final class CarbonLoaderUtil {
     final List<String> loadFolders = new ArrayList<String>();
     if (listOfLoadFolderDetailsArray == null) {
       //delete all files which in table folder
-      String tablePath = carbonTablePath.getPath() + File.separator + "Fact";
-      FileType fileType = FileFactory.getFileType(tablePath);
-      if (FileFactory.isFileExist(tablePath, fileType)) {
-        CarbonFile carbonFile = FileFactory.getCarbonFile(tablePath, fileType);
+      String tableFactPath = carbonTablePath.getFactDir();
+      FileType fileType = FileFactory.getFileType(tableFactPath);
+      if (FileFactory.isFileExist(tableFactPath, fileType)) {
+        CarbonFile carbonFile = FileFactory.getCarbonFile(tableFactPath, fileType);
         CarbonFile[] listFiles = carbonFile.listFiles();
         for (int k = 0; k < listFiles.length; k++) {
           deleteStorePath(listFiles[k].getAbsolutePath());
@@ -330,8 +330,7 @@ public final class CarbonLoaderUtil {
       }
       //delete files which in Partition folder
       for (int i = 0; i < carbonTable.getPartitionCount(); i++) {
-        String partitionPath = carbonTablePath.getPath() + File.separator + "Fact" + File.separator
-          + "Part" + i;
+        String partitionPath = carbonTablePath.getPartitionDir(i+"");
         FileType fileType = FileFactory.getFileType(partitionPath);
         if (FileFactory.isFileExist(partitionPath, fileType)) {
           CarbonFile carbonFile = FileFactory.getCarbonFile(partitionPath, fileType);
