@@ -51,6 +51,7 @@ import org.carbondata.core.load.LoadMetadataDetails;
 import org.carbondata.core.util.CarbonProperties;
 import org.carbondata.core.util.CarbonUtil;
 import org.carbondata.core.util.CarbonUtilException;
+import org.carbondata.lcm.status.SegmentStatusManager;
 import org.carbondata.processing.api.dataloader.DataLoadModel;
 import org.carbondata.processing.api.dataloader.SchemaInfo;
 import org.carbondata.processing.csvload.DataGraphExecuter;
@@ -287,63 +288,36 @@ public final class CarbonLoaderUtil {
   }
 
   public static void deletePartialLoadDataIfExist(CarbonLoadModel loadModel) throws IOException {
-    String tableStatusPath =
-        loadModel.getCarbonDataLoadSchema().getCarbonTable().getMetaDataFilepath() + File.separator
-        + CarbonCommonConstants.LOADMETADATA_FILENAME;
-    Gson gsonObjectToRead = new Gson();
-    DataInputStream dataInputStream = null;
-    LoadMetadataDetails[] listOfLoadFolderDetailsArray = null;
-    try {
-      if (FileFactory.isFileExist(tableStatusPath, FileFactory.getFileType(tableStatusPath))) {
-        dataInputStream = FileFactory
-          .getDataInputStream(tableStatusPath, FileFactory.getFileType(tableStatusPath));
-        BufferedReader buffReader = new BufferedReader(new InputStreamReader(dataInputStream,
-            CarbonCommonConstants.CARBON_DEFAULT_STREAM_ENCODEFORMAT));
-        listOfLoadFolderDetailsArray =
-          gsonObjectToRead.fromJson(buffReader, LoadMetadataDetails[].class);
-      }
-    } finally {
-      CarbonUtil.closeStreams(dataInputStream);
-    }
-    CarbonTable carbonTable = CarbonMetadata.getInstance()
-        .getCarbonTable(loadModel.getDatabaseName() + CarbonCommonConstants.UNDERSCORE + loadModel
-        .getTableName());
+    CarbonTable carbonTable = org.carbondata.core.carbon.metadata.CarbonMetadata.getInstance()
+        .getCarbonTable(loadModel.getDatabaseName() + CarbonCommonConstants.UNDERSCORE
+          + loadModel.getTableName());
+    String metaDataLocation = carbonTable.getMetaDataFilepath();
+    SegmentStatusManager segmentStatusManager =
+        new SegmentStatusManager(carbonTable.getAbsoluteTableIdentifier());
+    LoadMetadataDetails[] details = segmentStatusManager.readLoadMetadata(metaDataLocation);
     CarbonTablePath carbonTablePath = CarbonStorePath.getCarbonTablePath(loadModel.getStorePath(),
         carbonTable.getCarbonTableIdentifier());
     final List<String> loadFolders = new ArrayList<String>();
-    if (listOfLoadFolderDetailsArray == null) {
-      //delete all files which in table folder
-      String tableFactPath = carbonTablePath.getFactDir();
-      FileType fileType = FileFactory.getFileType(tableFactPath);
-      if (FileFactory.isFileExist(tableFactPath, fileType)) {
-        CarbonFile carbonFile = FileFactory.getCarbonFile(tableFactPath, fileType);
-        CarbonFile[] listFiles = carbonFile.listFiles();
+    for (LoadMetadataDetails loadMetadata : details) {
+      loadFolders.add(carbonTablePath.getCarbonDataDirectoryPath(loadMetadata.getPartitionCount(),
+          loadMetadata.getLoadName())
+          .replace("\\", "/"));
+    }
+
+    //delete folder which metadata no exist in tablestatus
+    for (int i = 0; i < carbonTable.getPartitionCount(); i++) {
+      String partitionPath = carbonTablePath.getPartitionDir(i + "");
+      FileType fileType = FileFactory.getFileType(partitionPath);
+      if (FileFactory.isFileExist(partitionPath, fileType)) {
+        CarbonFile carbonFile = FileFactory.getCarbonFile(partitionPath, fileType);
+        CarbonFile[] listFiles = carbonFile.listFiles(new CarbonFileFilter() {
+          @Override
+          public boolean accept(CarbonFile path) {
+            return !loadFolders.contains(path.getAbsolutePath().replace("\\", "/"));
+          }
+        });
         for (int k = 0; k < listFiles.length; k++) {
           deleteStorePath(listFiles[k].getAbsolutePath());
-        }
-      }
-    } else {
-      for (LoadMetadataDetails loadMetadata : listOfLoadFolderDetailsArray) {
-        loadFolders.add(carbonTablePath
-            .getCarbonDataDirectoryPath(loadMetadata.getPartitionCount(),
-              loadMetadata.getLoadName())
-            .replace("\\", "/"));
-      }
-      //delete files which in Partition folder
-      for (int i = 0; i < carbonTable.getPartitionCount(); i++) {
-        String partitionPath = carbonTablePath.getPartitionDir(i+"");
-        FileType fileType = FileFactory.getFileType(partitionPath);
-        if (FileFactory.isFileExist(partitionPath, fileType)) {
-          CarbonFile carbonFile = FileFactory.getCarbonFile(partitionPath, fileType);
-          CarbonFile[] listFiles = carbonFile.listFiles(new CarbonFileFilter() {
-            @Override
-            public boolean accept(CarbonFile path) {
-              return !loadFolders.contains(path.getAbsolutePath().replace("\\", "/"));
-            }
-          });
-          for (int k = 0; k < listFiles.length; k++) {
-            deleteStorePath(listFiles[k].getAbsolutePath());
-          }
         }
       }
     }
