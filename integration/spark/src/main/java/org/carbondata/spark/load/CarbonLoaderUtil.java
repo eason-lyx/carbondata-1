@@ -257,16 +257,12 @@ public final class CarbonLoaderUtil {
   }
 
   public static void deleteSegment(CarbonLoadModel loadModel, int currentLoad) {
-    CarbonTable carbonTable = CarbonMetadata.getInstance()
-        .getCarbonTable(loadModel.getDatabaseName() + CarbonCommonConstants.UNDERSCORE + loadModel
-        .getTableName());
+    CarbonTable carbonTable = loadModel.getCarbonDataLoadSchema().getCarbonTable();
     CarbonTablePath carbonTablePath = CarbonStorePath.getCarbonTablePath(loadModel.getStorePath(),
         carbonTable.getCarbonTableIdentifier());
 
     for (int i = 0; i < carbonTable.getPartitionCount(); i++) {
-      String segmentPath = carbonTablePath
-          .getCarbonDataDirectoryPath(i + "", currentLoad + "")
-          .replace("\\", "/");
+      String segmentPath = carbonTablePath.getCarbonDataDirectoryPath(i+"",currentLoad+"");
       deleteStorePath(segmentPath);
     }
   }
@@ -288,9 +284,7 @@ public final class CarbonLoaderUtil {
   }
 
   public static void deletePartialLoadDataIfExist(CarbonLoadModel loadModel) throws IOException {
-    CarbonTable carbonTable = org.carbondata.core.carbon.metadata.CarbonMetadata.getInstance()
-        .getCarbonTable(loadModel.getDatabaseName() + CarbonCommonConstants.UNDERSCORE
-          + loadModel.getTableName());
+    CarbonTable carbonTable = loadModel.getCarbonDataLoadSchema().getCarbonTable();
     String metaDataLocation = carbonTable.getMetaDataFilepath();
     SegmentStatusManager segmentStatusManager =
         new SegmentStatusManager(carbonTable.getAbsoluteTableIdentifier());
