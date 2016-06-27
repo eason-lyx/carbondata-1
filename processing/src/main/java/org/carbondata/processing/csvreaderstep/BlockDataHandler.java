@@ -152,10 +152,7 @@ public class BlockDataHandler {
     }
 
     byte[] finalResult = new byte[resultIndex];
-    for (int i = 0; i < finalResult.length; i++) {
-      finalResult[i] = result[i];
-    }
-
+    System.arraycopy(result,0,finalResult,0,resultIndex);
     return finalResult;
   }
 
