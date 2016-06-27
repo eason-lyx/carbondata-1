@@ -650,10 +650,9 @@ public class BlockDataHandler {
       if (length <= 0) {
         length = 0;
       }
-    }
-
-    if (endOfBuffer) {
-      this.startBuffer++; // offset for the enclosure in last field before EOF
+      if (endOfBuffer) {
+        this.startBuffer++; // offset for the enclosure in last field before EOF
+      }
     }
 
     if (enclosureFound) {

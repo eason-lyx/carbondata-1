@@ -222,7 +222,24 @@ class TestLoadDataWithHiveSyntax extends QueryTest with BeforeAndAfterAll {
       .addProperty(CarbonCommonConstants.CARBON_TIMESTAMP_FORMAT, "dd-MM-yyyy")
     sql("DROP TABLE IF EXISTS t3")
   }
-  
+
+  test("test carbon table data loading with special character") {
+    sql("DROP TABLE IF EXISTS t3")
+
+    sql("""
+         CREATE TABLE t3(imei string,specialchar string)
+         STORED BY 'org.apache.carbondata.format'
+        """)
+
+    sql("""
+       LOAD DATA LOCAL INPATH './src/test/resources/datawithspecialcharacter.csv' into table t3
+          options ('DELIMITER'=',', 'QUOTECHAR'='\"')
+       """)
+    checkAnswer(sql("select count(*) from t3"), Seq(Row(36)))
+    sql("DROP TABLE IF EXISTS t3")
+  }
+
+
   override def afterAll {
     sql("drop table carbontable")
     sql("drop table hivetable")
