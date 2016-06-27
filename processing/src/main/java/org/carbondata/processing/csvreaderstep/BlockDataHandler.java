@@ -324,6 +324,7 @@ public class BlockDataHandler {
         boolean quoteAfterDelimiter = false;
         boolean quoteBeforeDelimiterOrCrLf = false;
         int escapedEnclosureFound = 0;
+        boolean escapedEnclosureFlag = false;
         while (!delimiterFound) {
           // If we find the first char, we might find others as well ;-)
           // Single byte delimiters only for now.
@@ -432,6 +433,10 @@ public class BlockDataHandler {
                       data.enclosure);
               if (!keepGoing) {
                 outOfEnclosureFlag = !outOfEnclosureFlag;
+                if(this.endBuffer -1 >= 0 && data.escapeCharMatcher.matchesPattern(this
+                    .byteBuffer,this.endBuffer - 1,data.escapeCharacter)){
+                  escapedEnclosureFlag = true;
+                }
                 // We found an enclosure character.
                 // Read another byte...
                 if (this.increaseEndBuffer()) {
@@ -448,7 +453,9 @@ public class BlockDataHandler {
                         data.enclosure);
                 if (keepGoing) {
                   outOfEnclosureFlag = !outOfEnclosureFlag;
-                  escapedEnclosureFound++;
+                  if (!escapedEnclosureFlag || data.enclosure[0] == data.escapeCharacter[0]) {
+                    escapedEnclosureFound++;
+                  }
                 } else {
                   /**
                    * <pre>
@@ -472,7 +479,11 @@ public class BlockDataHandler {
                 }
 
               }
-              if (!keepGoing) {
+              if (this.endBuffer - 1 >= 0
+                  && data.delimiterMatcher.matchesPattern(this.byteBuffer, this.endBuffer,
+                  data.delimiter)
+                  || data.crLfMatcher.isReturn(this.byteBuffer, this.endBuffer)
+                  || data.crLfMatcher.isLineFeed(this.byteBuffer, this.endBuffer)) {
                 if (data.enclosureMatcher
                     .matchesPattern(this.byteBuffer, this.endBuffer - 1, data.enclosure)) {
                   quoteBeforeDelimiterOrCrLf = true;

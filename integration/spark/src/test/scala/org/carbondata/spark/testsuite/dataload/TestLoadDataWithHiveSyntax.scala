@@ -268,9 +268,10 @@ class TestLoadDataWithHiveSyntax extends QueryTest with BeforeAndAfterAll {
 
     sql("""
        LOAD DATA LOCAL INPATH './src/test/resources/datawithspecialcharacter.csv' into table t3
-          options ('DELIMITER'=',', 'QUOTECHAR'='\"')
+          options ('DELIMITER'=',', 'QUOTECHAR'='"')
        """)
-    checkAnswer(sql("select count(*) from t3"), Seq(Row(36)))
+    checkAnswer(sql("select count(*) from t3"), Seq(Row(37)))
+    checkAnswer(sql("select specialchar from t3 where imei='1AA36'"),Seq(Row("\"i\"")))
     sql("DROP TABLE IF EXISTS t3")
   }
 
