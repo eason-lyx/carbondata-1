@@ -136,6 +136,31 @@ public class BlockDataHandler {
     return false;
   }
 
+  /**
+   * <pre>
+   * [abcd "" defg] --> [abcd " defg]
+   * [""""] --> [""]
+   * [""] --> ["]
+   * </pre>
+   *
+   * @return the byte array with escaped enclosures escaped.
+   */
+  public byte[] removeEscapedEnclosures(byte[] field, int nrEnclosuresFound) {
+    byte[] result = new byte[field.length - nrEnclosuresFound];
+    int resultIndex = 0;
+    for (int i = 0; i < field.length; i++) {
+      if (field[i] == data.enclosure[0]) {
+        if (!(i + 1 < field.length && field[i + 1] == data.enclosure[0])) {
+          // Not an escaped enclosure...
+          result[resultIndex++] = field[i];
+        }
+      } else {
+        result[resultIndex++] = field[i];
+      }
+    }
+    return result;
+  }
+
   public byte[] removeEscapeChar(byte[] field, byte[] escapeChar) {
     byte[] result = new byte[field.length];
     int resultIndex = 0;
@@ -298,6 +323,7 @@ public class BlockDataHandler {
         boolean enclosureFound = false;
         boolean quoteAfterDelimiter = false;
         boolean quoteBeforeDelimiterOrCrLf = false;
+        int escapedEnclosureFound = 0;
         while (!delimiterFound) {
           // If we find the first char, we might find others as well ;-)
           // Single byte delimiters only for now.
@@ -422,6 +448,7 @@ public class BlockDataHandler {
                         data.enclosure);
                 if (keepGoing) {
                   outOfEnclosureFlag = !outOfEnclosureFlag;
+                  escapedEnclosureFound++;
                 } else {
                   /**
                    * <pre>
@@ -507,7 +534,11 @@ public class BlockDataHandler {
         byte[] field = new byte[length];
         System.arraycopy(this.byteBuffer, this.startBuffer, field, 0, length);
 
-        if(quoteAfterDelimiter && quoteBeforeDelimiterOrCrLf){
+        if (escapedEnclosureFound > 0 && quoteAfterDelimiter && quoteBeforeDelimiterOrCrLf) {
+          field = this.removeEscapedEnclosures(field, escapedEnclosureFound);
+        }
+
+        if(doConversions && quoteAfterDelimiter && data.escapeCharacter[0] != data.enclosure[0]){
           field = removeEscapeChar(field,data.escapeCharacter);
         }
 
