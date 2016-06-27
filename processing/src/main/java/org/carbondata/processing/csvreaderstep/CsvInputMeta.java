@@ -612,7 +612,7 @@ public class CsvInputMeta extends BaseStepMeta
   }
 
   public String getEscapeCharacter() {
-    return this.escapeCharacter;
+    return escapeCharacter;
   }
 
   public void setEscapeCharacter(String escapeCharacter){

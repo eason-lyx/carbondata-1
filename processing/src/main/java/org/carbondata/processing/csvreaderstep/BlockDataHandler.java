@@ -461,11 +461,12 @@ public class BlockDataHandler {
                   .isReturn(this.byteBuffer, this.endBuffer)
                   || data.crLfMatcher
                   .isLineFeed(this.byteBuffer, this.endBuffer));
-                if (quoteBeforeDelimeterOrCrLf && quoteAfterDelimeter) {
-                  enclosureFound = true;
-                } else {
-                  enclosureFound = false;
-                }
+              }
+
+              if (quoteBeforeDelimeterOrCrLf && quoteAfterDelimeter) {
+                enclosureFound = true;
+              } else {
+                enclosureFound = false;
               }
             } while (keepGoing);
 
