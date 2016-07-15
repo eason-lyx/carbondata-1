@@ -72,10 +72,8 @@ case class PrimitiveParser(dimension: CarbonDimension,
   }
 
   def parseString(input: String): Unit = {
-    if (hasDictEncoding) {
-      if (input != null) {
-        set.add(input)
-      }
+    if (hasDictEncoding && input != null) {
+      set.add(input)
     }
   }
 }
