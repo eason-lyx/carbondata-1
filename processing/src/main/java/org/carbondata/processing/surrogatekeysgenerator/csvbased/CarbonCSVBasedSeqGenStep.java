@@ -167,7 +167,7 @@ public class CarbonCSVBasedSeqGenStep extends BaseStep {
   /**
    * ValueToCheckAgainst
    */
-  private String valueToCheckAgainst = "";
+  private String valueToCheckAgainst;
   /**
    * propMap
    */
